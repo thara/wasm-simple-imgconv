@@ -3,7 +3,7 @@ clean:
 	@rm -f imgconv.js
 
 imgconv.wasm:
-	@emcc imgconv.c -o imgconv.js -s WASM=1 --no-heap-copy
+	@emcc imgconv.c -o imgconv.js -s WASM=1
 
 build: imgconv.wasm
 

@@ -21,6 +21,9 @@ async function loadWASM() {
   const pageCount = ((arraySize + 0xffff) & ~0xffff) >> 16;
   const memory = new WebAssembly.Memory({initial: pageCount});
 
+  console.log(arraySize);
+  console.log(pageCount);
+
   const wasm = await WebAssembly
     .instantiateStreaming(fetch('imgconv.wasm'), {
       env: {
@@ -30,7 +33,7 @@ async function loadWASM() {
         seed: () => new Date().GetTime(),
       }
     });
-  return wasm.instance.exports;
+  return wasm;
 }
 
 document.querySelector('.action.original').onclick = e => {
@@ -43,25 +46,20 @@ document.querySelector('.action.grayscale').onclick = async e => {
 
   const wasm = await loadWASM();
 
-  const imgData = getOriginalImageData();
-  console.log(imgData.data);
+  const imageData = getOriginalImageData();
 
-  const imgBuf = imgData.data
+  const offset = wasm.instance.exports.getImageBuf();
+  const bufSize = wasm.instance.exports.getImageBufSize();
+  const bytes = new Uint8ClampedArray(wasm.instance.exports.memory.buffer, offset, bufSize);
 
-  const bytes = new Uint8ClampedArray(wasm.memory.buffer);
-  for (let i = 0; i < imgData.data.length; i++) {
-    bytes[i] = imgData.data[i];
+  for (let i = 0; i < imageData.data.length; i++) {
+    bytes[i] = imageData.data[i];
   }
-  console.log(bytes);
 
-  wasm['grayscale'](bytes, width, height);
+  wasm.instance.exports.grayscale();
 
-  for (let i = 0; i < imgData.data.length; i++) {
-     imgData.data[i] = bytes[i];
+  for (let i = 0; i < imageData.data.length; i++) {
+     imageData.data[i] = bytes[i];
   }
-  ctx.putImageData(imgData, 0, 0);
-  console.log(imgData.data);
-  console.log(bytes);
-
-  // ctx.putImageData(imgData, 0, 0);
+  ctx.putImageData(imageData, 0, 0);
 }
