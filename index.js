@@ -21,29 +21,18 @@ async function loadWASM() {
   const pageCount = ((arraySize + 0xffff) & ~0xffff) >> 16;
   const memory = new WebAssembly.Memory({initial: pageCount});
 
-  console.log(arraySize);
-  console.log(pageCount);
-
   const wasm = await WebAssembly
     .instantiateStreaming(fetch('imgconv.wasm'), {
       env: {
         memory,
         buffer: memory.buffer,
-        abort: (_msg, _file, line, column) => console.error(`Abort at ${line}:${column}`),
-        seed: () => new Date().GetTime(),
+        js_random: () => Math.random(),
       }
     });
   return wasm;
 }
 
-document.querySelector('.action.original').onclick = e => {
-  e.preventDefault();
-  drawOriginal();
-}
-
-document.querySelector('.action.grayscale').onclick = async e => {
-  e.preventDefault();
-
+async function invoke(f) {
   const wasm = await loadWASM();
 
   const imageData = getOriginalImageData();
@@ -56,10 +45,35 @@ document.querySelector('.action.grayscale').onclick = async e => {
     bytes[i] = imageData.data[i];
   }
 
-  wasm.instance.exports.grayscale();
+  f(wasm);
 
   for (let i = 0; i < imageData.data.length; i++) {
      imageData.data[i] = bytes[i];
   }
   ctx.putImageData(imageData, 0, 0);
+}
+
+document.querySelector('.action.original').onclick = e => {
+  e.preventDefault();
+  drawOriginal();
+}
+
+document.querySelector('.action.invert').onclick = async e => {
+  e.preventDefault();
+  invoke((wasm) => wasm.instance.exports.invert());
+}
+
+document.querySelector('.action.grayscale').onclick = async e => {
+  e.preventDefault();
+  invoke((wasm) => wasm.instance.exports.grayscale());
+}
+
+document.querySelector('.action.basicMonochrome').onclick = async e => {
+  e.preventDefault();
+  invoke((wasm) => wasm.instance.exports.basic_monochrome(150));
+}
+
+document.querySelector('.action.randomMonochrome').onclick = async e => {
+  e.preventDefault();
+  invoke((wasm) => wasm.instance.exports.random_monochrome(80));
 }
